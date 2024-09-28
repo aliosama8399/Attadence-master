@@ -1,0 +1,56 @@
+<!-- index.html -->
+{% extends 'AuthApp/base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+
+welcome {{user.username}}
+
+<div class="container mt-5" >
+    <h1>Attendence</h1>
+    <form method="post" action="{% url 'takeAttendence' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="date_time">Select Date and Time:</label>
+            <input type="datetime-local" id="date_time" name="date_time" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="hall">Hall</label>
+            <select id="hall" name="hall" class="form-control">
+                {% for hall in halls %}
+                    <option value="{{ hall.id }}">{{ hall.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="subject">Lecture Name</label>
+            <select id="subject" name="subject" class="form-control">
+                {% for subject in subjects %}
+                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="numberStudent">Number of students:</label>
+            <input type="number" name="numStudent" id="numberStudent" required class="form-control">
+        </div>
+        <button type="submit" class="btn btn-primary mt-2">Take Attendence</button>
+    </form>
+</div>
+
+
+<script>
+    // Function to set the current date and time as the default value
+    function setCurrentDateTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const datetimeLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
+        document.getElementById('date_time').value = datetimeLocal;
+    }
+</script>
+{% endblock %}
