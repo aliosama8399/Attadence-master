@@ -1,0 +1,22 @@
+{% extends 'AuthApp/base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<form method="post" action="{% url 'save_modified_names' %}">
+    {% csrf_token %}
+    <h3>Modify Recognized Faces</h3>
+    {% for name in recognized_names %}
+        <div>
+            <label>Recognized Name:</label>
+            <input type="text" name="modified_names" value="{{ name }}">
+        </div>
+    {% endfor %}
+    
+    <h4>Add New Names (optional)</h4>
+    <input type="text" name="new_names" placeholder="Enter names separated by commas">
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

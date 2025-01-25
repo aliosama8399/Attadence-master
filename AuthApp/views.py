@@ -10,16 +10,18 @@ import logging
 import os
 import cv2
 import csv
-import time
 import numpy as np
 from django.conf import settings
+from django.utils import timezone
+from django.http import HttpResponse, FileResponse
+
 
 status = False
 # Suppress debug logs
 logging.getLogger('insightface').setLevel(logging.ERROR)
 
 # Initialize the FaceAnalysis model
-providers = ['CUDAExecutionProvider']
+providers = ['AzureExecutionProvider']
 app = FaceAnalysis(providers=providers)
 app.prepare(ctx_id=0, det_size=(224, 224))
 
@@ -73,27 +75,13 @@ def load_training_images(request):
     except Exception as e:
         return JsonResponse({"status": "failed", "message": f"Error loading training images: {e}"})
 
-# Other functions (index, login, logout, takeAttendence) remain the same
 # Function to save unique names to CSV
-def save_unique_names_to_csv(names, csv_file_path):
-    try:
-        # Check if the file exists and load existing names to prevent duplication
-        existing_names = set()
-        # if os.path.exists(csv_file_path):
-        #     with open(csv_file_path, mode='w') as file:
-        #         reader = csv.reader(file)
-        #         for row in reader:
-        #             existing_names.add(row[0])  # Add the existing names to the set
-
-        # Open the CSV file in append mode and write only unique names
-        with open(csv_file_path, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            for name in names:
-                if name not in existing_names:
-                    writer.writerow([name])
-                    existing_names.add(name)
-    except Exception as e:
-        print(f"Error writing to CSV: {e}")
+def save_unique_names_to_csv(names_set, csv_file_path):
+    with open(csv_file_path, 'w', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["Recognized Faces"])  # Write header
+        for name in names_set:
+            csv_writer.writerow([name])
 
 @login_required
 def index(request):
@@ -101,8 +89,7 @@ def index(request):
         user = request.user
         subjects = Subject.objects.all()
         halls = Hall.objects.all()
-        load_training_images(request)
-        # print(subjects,halls);
+
         context = {
             'username': user.username,
             'email': user.email,
@@ -111,87 +98,108 @@ def index(request):
             'subjects': subjects,
             'halls': halls
         }
-        return render(request, 'AuthApp/home.html',context)
+        return render(request, 'AuthApp/home.html', context)
     else:
-        # print('hello world')
         return redirect('login')
 
 def user_login(request):
+    load_training_images(request)
     if request.method == 'POST':
         code = request.POST['code']
         password = request.POST['password']
-        print(code,password)
         user = authenticate(request, username=code, password=password)
 
         if user is not None:
             login(request, user)
-            return redirect('/')  # redirect to home or another page
+            return redirect('/')
         else:
             messages.error(request, 'Invalid credentials')
-
-    # print('hello world')
-    # status = load_training_images(request)
-    # if status:
     return render(request, 'AuthApp/login.html')
-    
-
 
 @login_required
 def user_logout(request):
     logout(request)
     return redirect('login')
 
-
 @login_required
 def takeAttendence(request):
-        if request.method == 'POST':
-            video_capture = None
-            try:
-                video_capture = cv2.VideoCapture(0)  # Access the default camera (0)
-                if not video_capture.isOpened():
-                    return JsonResponse({"status": "failed", "message": "Failed to access the camera."})
+    if request.method == 'POST':
+        try:
+            uploaded_images = request.FILES.getlist('images')
+            if not uploaded_images:
+                return JsonResponse({"status": "failed", "message": "No images uploaded."})
 
-                start_time = time.time()
-                recognized_names = set()  # Set to store unique recognized names
+            recognized_names = []  # List to store recognized names, allowing duplicates for "Unknown"
+            unique_recognized_names = set()  # Set to keep track of unique recognized names
 
-                # Capture images for 1 minute (60 seconds)
-                while (time.time() - start_time) < 60:
-                    ret, frame = video_capture.read()
-                    if not ret:
-                        return JsonResponse({"status": "failed", "message": "Failed to capture image from camera."})
+            for uploaded_image in uploaded_images:
+                image_array = np.frombuffer(uploaded_image.read(), np.uint8)
+                img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+                if img is None:
+                    continue
 
-                    faces = app.get(frame)
+                faces = app.get(img)
 
-                    for face in faces:
-                        if face.embedding is None:
-                            continue  # Skip if embedding is None
+                for face in faces:
+                    if face.embedding is None:
+                        continue
 
-                        embedding = normalize_embedding(face.embedding)
-                        name = "Unknown"
-                        min_dist = float("inf")
+                    embedding = normalize_embedding(face.embedding)
+                    name = "Unknown"
+                    min_dist = float("inf")
 
-                        # Compare the face with known faces
-                        for known_embedding, known_name in zip(known_face_embeddings, known_face_names):
-                            dist = np.linalg.norm(embedding - known_embedding)
-                            if dist < min_dist:
-                                min_dist = dist
-                                name = known_name if dist < 1.2 else "Unknown"
+                    for known_embedding, known_name in zip(known_face_embeddings, known_face_names):
+                        dist = np.linalg.norm(embedding - known_embedding)
+                        if dist < min_dist:
+                            min_dist = dist
+                            name = known_name if dist < 1.2 else "Unknown"
 
-                        # Only add the name if it's not "Unknown" and it's not already in the set
-                        if name != "Unknown":
-                            recognized_names.add(name)
+                    # Add recognized names
+                    if name == "Unknown":
+                        recognized_names.append(name)
+                    elif name not in unique_recognized_names:
+                        recognized_names.append(name)
+                        unique_recognized_names.add(name)
 
-                # Save unique recognized names to CSV
-                csv_file_path = os.path.join(settings.BASE_DIR, 'recognized_faces.csv')
-                save_unique_names_to_csv(recognized_names, csv_file_path)
+            context = {
+                'recognized_names': recognized_names,
+            }
+            return render(request, 'AuthApp/modify_recognized_faces.html', context)
 
-                return redirect('/')  # redirect to home or another page
-                # return JsonResponse({"status": "success", "message": f"Unique recognized names saved to {csv_file_path}"})
-            except Exception as e:
-                return JsonResponse({"status": "failed", "message": f"Error recognizing faces: {e}"})
-            finally:
-                if video_capture:
-                    video_capture.release()
-                cv2.destroyAllWindows()
+        except Exception as e:
+            return JsonResponse({"status": "failed", "message": f"Error recognizing faces: {e}"})
 
-        return JsonResponse({"status": "failed", "message": "Invalid request method."})
+    return JsonResponse({"status": "failed", "message": "Invalid request method."})
+
+
+@login_required
+def save_modified_names(request):
+    if request.method == 'POST':
+        # Get modified names from the form submission
+        modified_names = request.POST.getlist('modified_names')  # List that allows duplicates
+
+        # Handle additional new names if entered by the user
+        new_names = request.POST.get('new_names')
+        if new_names:
+            # Split and strip to handle multiple names entered in the 'new_names' field
+            new_names_list = [name.strip() for name in new_names.split(',') if name.strip()]
+            modified_names.extend(new_names_list)  # Extend list with new names, including duplicates of "Unknown"
+
+        # Generate CSV filename with timestamp for the current user
+        username = request.user.username
+        current_date_time = timezone.now().strftime('%Y-%m-%d_%H-%M-%S')
+        csv_filename = f"{username}_{current_date_time}.csv"
+        csv_file_path = os.path.join(settings.BASE_DIR, csv_filename)
+
+        # Save all modified names, allowing duplicates of "Unknown"
+        with open(csv_file_path, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerow(["Recognized Faces"])  # Header row
+            for name in modified_names:
+                csv_writer.writerow([name])  # Save each name as-is
+
+        # Serve the CSV file as a downloadable response
+        response = FileResponse(open(csv_file_path, 'rb'), as_attachment=True, filename=csv_filename)
+        return response
+
+    return JsonResponse({"status": "failed", "message": "Invalid request method."})

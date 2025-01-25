@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recognized Faces</title>
+</head>
+<body>
+
+<h1>Recognized Faces</h1>
+
+<!-- Display the number of recognized faces -->
+<p>Number of Recognized Faces: {{ faces_count }}</p>
+
+<!-- Display the set of recognized faces -->
+<ul>
+    {% for face in recognized_faces %}
+        <li>{{ face }}</li>
+    {% empty %}
+        <p>No faces recognized yet.</p>
+    {% endfor %}
+</ul>
+
+<!-- Form to add new names -->
+<h2>Add Names</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save Names</button>
+</form>
+
+</body>
+</html>

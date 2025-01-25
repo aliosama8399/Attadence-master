@@ -5,16 +5,20 @@
 
 {% block content %}
 
-welcome {{user.username}}
+Welcome {{ user.username }}
 
-<div class="container mt-5" >
-    <h1>Attendence</h1>
-    <form method="post" action="{% url 'takeAttendence' %}">
+<div class="container mt-5">
+    <h1>Attendance</h1>
+    <form method="post" action="{% url 'takeAttendence' %}" enctype="multipart/form-data">
         {% csrf_token %}
+        
+        <!-- Date and Time Selection -->
         <div class="form-group">
             <label for="date_time">Select Date and Time:</label>
             <input type="datetime-local" id="date_time" name="date_time" class="form-control" required>
         </div>
+        
+        <!-- Hall Selection -->
         <div class="form-group">
             <label for="hall">Hall</label>
             <select id="hall" name="hall" class="form-control">
@@ -23,6 +27,8 @@ welcome {{user.username}}
                 {% endfor %}
             </select>
         </div>
+        
+        <!-- Lecture Selection -->
         <div class="form-group">
             <label for="subject">Lecture Name</label>
             <select id="subject" name="subject" class="form-control">
@@ -31,14 +37,17 @@ welcome {{user.username}}
                 {% endfor %}
             </select>
         </div>
+
+        <!-- File Input for Multiple Images -->
         <div class="form-group">
-            <label for="numberStudent">Number of students:</label>
-            <input type="number" name="numStudent" id="numberStudent" required class="form-control">
+            <label for="images">Upload Images</label>
+            <input type="file" id="images" name="images" class="form-control" accept="image/*" multiple required>
         </div>
-        <button type="submit" class="btn btn-primary mt-2">Take Attendence</button>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary mt-2">Take Attendance</button>
     </form>
 </div>
-
 
 <script>
     // Function to set the current date and time as the default value
@@ -52,5 +61,9 @@ welcome {{user.username}}
         const datetimeLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
         document.getElementById('date_time').value = datetimeLocal;
     }
+
+    // Call the function to set current date and time on page load
+    document.addEventListener("DOMContentLoaded", setCurrentDateTime);
 </script>
+
 {% endblock %}

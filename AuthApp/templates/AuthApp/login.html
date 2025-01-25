@@ -1,5 +1,7 @@
-<!-- index.html -->
 {% extends 'AuthApp/base.html' %}
+
+{% load static %}
+
 
 {% block title %}Login Page{% endblock %}
 
@@ -8,16 +10,17 @@
 <!-- login.html -->
 <form method="post" class="text-center mt-2">
     {% csrf_token %}
-    <div class="h2">Login</div>
-    <div class="form-control">
+    <div class="h2">Attendence Login</div>
+    <img src="media/OIP.jpg" alt="BUA">
+    <div class="form-group">
         <label for="code">Code:</label>
-        <input type="text" name="code" required class="form-input">
+        <input type="text" name="code" required class="form-control">
     </div>
-    <div class="form-control mt-2 mb-2">
+    <div class="form-group mt-2 mb-2">
         <label for="password">Password</label>
-        <input type="password" name="password" required class="form-input">
+        <input type="password" name="password" required class="form-control">
     </div>
-    <div class="form-control">
+    <div class="form-group">
         <button class="btn btn-success" type="submit">Login</button>
     </div>
 </form>

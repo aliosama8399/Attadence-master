@@ -9,6 +9,8 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('takeAttadence',views.takeAttendence, name='takeAttendence'),
     path('load-training-images/', views.load_training_images, name='load_training_images'),
-    
+     # New URL to view the CSV contents
+    # path('add-names/', views.add_names_to_csv, name='add_names_to_csv'),
+    path('save_modified_names/', views.save_modified_names, name='save_modified_names'),
 
 ]
